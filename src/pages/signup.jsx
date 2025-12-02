@@ -154,7 +154,7 @@ const AuthPage = () => {
         if (data.token) {
           localStorage.setItem('token', data.token);
         }
-        navigate('/Home')
+        navigate('/dashboard')
       } else {
         setMessage({ type: 'error', text: data.message || 'Login failed. Please check your credentials.' });
       }

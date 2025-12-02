@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, Plus, MapPin, AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
-
+import { useNavigate } from 'react-router-dom';
+import ChatSystem from './chat';
 const HomePage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('found');
@@ -19,7 +20,10 @@ const HomePage = () => {
     description: '',
     proof: ''
   });
-
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [chatData, setChatData] = useState(null);
+  
+  const navigate=useNavigate();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -86,7 +90,48 @@ const HomePage = () => {
       setLoading(false);
     }
   };
+  const Logout = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:2120/api/auth/logout', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include'
+      });
+     
+    } catch (error) {
+      console.error('Error fetching Logout:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+ const fetchClaimsForuploaded= async () => {
 
+  setLoading(true);
+  try {
+    const response = await fetch(`http://localhost:2120/api/claim/item/uploadedbyuser`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      credentials: 'include',
+    });
+    const data = await response.json();
+    console.log(data);
+    if (response.ok) {
+     // showMessage('success', 'Claim submitted successfully!');
+      setShowClaimModal(false);
+      //setClaimData({ description: '', proof: '' });
+     // fetchItems(activeTab);
+    
+    } else {
+      showMessage('error', data.message || 'Failed to Fetch claim');
+    }
+  } catch (error) {
+    showMessage('error', 'Network error. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
   const handleAIGenerate = async () => {
     if (!formData.image) {
       showMessage('error', 'Please select an image first');
@@ -192,7 +237,7 @@ const HomePage = () => {
         })
       });
       const data = await response.json();
-
+      console.log(data);
       if (response.ok) {
         showMessage('success', 'Claim submitted successfully!');
         setShowClaimModal(false);
@@ -815,6 +860,18 @@ const HomePage = () => {
     }
   `;
 
+  const openChat = (claim) => {
+    // Only allow chat if claim is approved
+    if (claim.status === 'approved') {
+      setChatData({
+        claimId: claim._id,
+        claimantName: claim.claimant?.username || 'User',
+        claimantEmail: claim.claimant?.email || '',
+        isClaimant: true
+      });
+      setShowChatModal(true);
+    }
+  };
   return (
     <>
       <style>{styles}</style>
@@ -877,6 +934,29 @@ const HomePage = () => {
             }}
           >
             My Claims
+          </button>
+          <button
+            className={`nav-link ${activePage === 'uploadedClaims' ? 'active' : ''}`}
+            onClick={() => {
+              setActivePage('uploadedClaims');
+             // fetchClaimsForuploaded();
+              setMobileMenuOpen(false);
+              navigate('/Claims');
+            }}
+          >
+           Claims For Uploaded items
+          </button>
+          <button
+            className={`nav-link ${activePage === 'logut' ? 'active' : ''}`}
+            onClick={() => {
+              setActivePage('logout');
+              Logout();
+            
+              setMobileMenuOpen(false);
+              navigate('/');
+            }}
+          >
+            Logout
           </button>
         </div>
       </nav>
@@ -970,54 +1050,78 @@ const HomePage = () => {
           </>
         ) : (
           <>
-            {loading ? (
-              <div className="empty-state">
-                <h3>Loading...</h3>
-              </div>
-            ) : myClaims.length === 0 ? (
-              <div className="empty-state">
-                <h3>No claims yet</h3>
-                <p>Claims you make will appear here</p>
-              </div>
-            ) : (
-              <div className="items-grid">
-                {myClaims.map(claim => (
-                  <div key={claim._id} className="item-card">
-                    {claim.itemId?.image && (
-                      <img src={claim.itemId.image} alt={claim.itemId.title} className="item-image" />
-                    )}
-                    <div className="item-content">
-                      <h3 className="item-title">{claim.itemId?.title}</h3>
-                      <div className="item-location">
-                        <MapPin size={18} />
-                        Item Type: {claim.itemId?.type}
-                      </div>
-                      <p className="item-description">
-                        <strong>Category:</strong> {claim.itemId?.category}
-                      </p>
-                      <div className="item-details">
-                        <div className="item-detail-row">
-                          <span className="item-detail-label">Your Proof:</span>
-                          <span className="item-detail-value" style={{ fontSize: '0.8rem' }}>{claim.proof}</span>
-                        </div>
-                        <div className="item-detail-row">
-                          <span className="item-detail-label">Item Status:</span>
-                          <span className={`status-badge ${claim.itemId?.status}`}>{claim.itemId?.status}</span>
-                        </div>
-                        <div className="item-detail-row">
-                          <span className="item-detail-label">Claim Status:</span>
-                          <span className={`status-badge ${claim.status}`}>{claim.status}</span>
-                        </div>
-                        <div className="item-detail-row">
-                          <span className="item-detail-label">Claimed On:</span>
-                          <span className="item-detail-value">{new Date(claim.createdAt).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          {loading ? (
+  <div className="empty-state">
+    <h3>Loading...</h3>
+  </div>
+) : myClaims.length === 0 ? (
+  <div className="empty-state">
+    <h3>No claims yet</h3>
+    <p>Claims you make will appear here</p>
+  </div>
+) : (
+  <div className="items-grid">
+    {myClaims.map(claim => (
+      <div key={claim._id} className="item-card">
+        {claim.itemId?.image && (
+          <img src={claim.itemId.image} alt={claim.itemId.title} className="item-image" />
+        )}
+        <div className="item-content">
+          <h3 className="item-title">{claim.itemId?.title}</h3>
+          <div className="item-location">
+            <MapPin size={18} />
+            Item Type: {claim.itemId?.type}
+          </div>
+          <p className="item-description">
+            <strong>Category:</strong> {claim.itemId?.category}
+          </p>
+          <div className="item-details">
+            <div className="item-detail-row">
+              <span className="item-detail-label">Your Proof:</span>
+              <span className="item-detail-value" style={{ fontSize: '0.8rem' }}>{claim.proof}</span>
+            </div>
+            <div className="item-detail-row">
+              <span className="item-detail-label">Item Status:</span>
+              <span className={`status-badge ${claim.itemId?.status}`}>{claim.itemId?.status}</span>
+            </div>
+            <div className="item-detail-row">
+              <span className="item-detail-label">Claim Status:</span>
+              <span className={`status-badge ${claim.status}`}>{claim.status}</span>
+            </div>
+            <div className="item-detail-row">
+              <span className="item-detail-label">Claimed On:</span>
+              <span className="item-detail-value">{new Date(claim.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+
+          {/* CHAT BUTTON - ADD THIS SECTION */}
+          {claim.status === 'approved' && (
+            <button
+              className="claim-btn"
+              onClick={() => {
+                setChatData({
+                  claimId: claim._id,
+                  claimantName: claim.itemId?.user?.username || 'Item Owner',
+                  claimantEmail: claim.itemId?.user?.email || '',
+                  isClaimant: true
+                });
+                setShowChatModal(true);
+              }}
+              style={{
+                marginTop: '15px',
+                background: 'rgba(75, 203, 250, 0.1)',
+                border: '1px solid rgba(75, 203, 250, 0.3)',
+                color: '#4bcbfa'
+              }}
+            >
+              💬 Chat with Owner
+            </button>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+)}
           </>
         )}
       </div>
@@ -1152,6 +1256,15 @@ const HomePage = () => {
           </div>
         </div>
       )}
+       {showChatModal && chatData && (
+  <ChatSystem
+    claimId={chatData.claimId}
+    claimantName={chatData.claimantName}
+    claimantEmail={chatData.claimantEmail}
+    isClaimant={chatData.isClaimant}
+    onClose={() => setShowChatModal(false)}
+  />
+)}
     </>
   );
 };
