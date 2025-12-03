@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import Lnct from '../assets/LNCT.jpg';
  function LostFoundApp() {
   const [activeSection, setActiveSection] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -563,7 +564,7 @@ import { useNavigate } from 'react-router-dom';
           </div>
 
           <div className="about-image">
-            <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=60" alt="Students using the app" />
+            <img src={Lnct} alt="Students using the app" />
           </div>
         </div>
       </section>
