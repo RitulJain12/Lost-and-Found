@@ -18,7 +18,8 @@ const HomePage = () => {
   const [messageTimeout, setMessageTimeout] = useState(null);
   const [claimData, setClaimData] = useState({
     description: '',
-    proof: ''
+    proof: '',
+    proofImage: null
   });
   const [showChatModal, setShowChatModal] = useState(false);
   const [chatData, setChatData] = useState(null);
@@ -62,14 +63,22 @@ const HomePage = () => {
         }
       );
       const data = await response.json();
+     
       if (response.ok) {
         setItems(data.Items || []);
+       
+      }
+     
+      if(data.message==='Unauthorized'){
+        navigate('/signup')
       }
     } catch (error) {
       console.error('Error fetching items:', error);
       showMessage('error', 'Failed to fetch items');
+    
     } finally {
       setLoading(false);
+     
     }
   };
 
@@ -90,7 +99,7 @@ const HomePage = () => {
       setLoading(false);
     }
   };
-  const Logout = async () => {
+  const Logout = async () => { 
     setLoading(true);
     try {
       const response = await fetch('http://localhost:2120/api/auth/logout', {
@@ -216,42 +225,56 @@ const HomePage = () => {
     }
   };
 
-  const handleCreateClaim = async () => {
-    if (!claimData.description || !claimData.proof) {
-      showMessage('error', 'All fields are required');
-      return;
-    }
+  
+const handleCreateClaim = async () => {
+  if (!claimData.description || !claimData.proof || !claimData.proofImage) {
+    showMessage('error', 'All fields including proof image are required');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const response = await fetch(`http://localhost:2120/api/claim/item/${selectedItem._id}`, {
+  setLoading(true);
+  try {
+    // Create FormData for multipart request
+    const formDataObj = new FormData();
+    formDataObj.append('proof', claimData.proof);
+    formDataObj.append('description', claimData.description);
+    formDataObj.append('image', claimData.proofImage);
+       
+    const response = await fetch(
+      `http://localhost:2120/api/claim/item/${selectedItem._id}`,
+      {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
+          // Don't set Content-Type, let browser set it with boundary
         },
         credentials: 'include',
-        body: JSON.stringify({
-          description: claimData.description,
-          proof: claimData.proof
-        })
-      });
-      const data = await response.json();
-      console.log(data);
-      if (response.ok) {
-        showMessage('success', 'Claim submitted successfully!');
-        setShowClaimModal(false);
-        setClaimData({ description: '', proof: '' });
-        fetchItems(activeTab);
-      } else {
-        showMessage('error', data.message || 'Failed to create claim');
+        body: formDataObj
       }
-    } catch (error) {
-      showMessage('error', 'Network error. Please try again.');
-    } finally {
-      setLoading(false);
+    );
+
+    const data = await response.json();
+    console.log(data);
+
+    if (response.ok) {
+      showMessage('success', 'Claim submitted successfully!');
+      setShowClaimModal(false);
+      setClaimData({ 
+        description: '', 
+        proof: '',
+        proofImage: null  // RESET IMAGE
+      });
+      fetchItems(activeTab);
+    } else {
+      showMessage('error', data.message || data.msg || 'Failed to create claim');
     }
-  };
+  } catch (error) {
+    showMessage('error', 'Network error. Please try again.');
+    console.error('Error creating claim:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -275,7 +298,12 @@ const HomePage = () => {
       [name]: value
     }));
   };
-
+  const handleClaimImageChange = (e) => {
+    setClaimData(prev => ({
+      ...prev,
+      proofImage: e.target.files[0]
+    }));
+  };
   const openReportModal = (type) => {
     setReportType(type);
     setActiveTab(type);
@@ -1218,44 +1246,77 @@ const HomePage = () => {
         </div>
       )}
 
-      {showClaimModal && selectedItem && (
-        <div className="modal-overlay" onClick={() => setShowClaimModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Claim Item</h2>
-              <button className="close-btn" onClick={() => setShowClaimModal(false)}>✕</button>
-            </div>
+{showClaimModal && selectedItem && (
+  <div className="modal-overlay" onClick={() => setShowClaimModal(false)}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2 className="modal-title">Claim Item</h2>
+        <button className="close-btn" onClick={() => setShowClaimModal(false)}>✕</button>
+      </div>
 
-            <div className="form-group">
-              <label>Description *</label>
-              <textarea
-                name="description"
-                value={claimData.description}
-                onChange={handleClaimChange}
-                placeholder="Why do you think this is your item?"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Claim Details *</label>
-              <textarea
-                name="proof"
-                value={claimData.proof}
-                onChange={handleClaimChange}
-                placeholder="Provide proof or identifying marks"
-              />
-            </div>
-
-            <button
-              className="submit-btn"
-              onClick={handleCreateClaim}
-              disabled={loading}
-            >
-              {loading ? 'Submitting...' : 'Submit Claim'}
-            </button>
+      {/* PROOF IMAGE UPLOAD - NEW FIELD */}
+      <div className="form-group">
+        <label>Proof Image *</label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleClaimImageChange}
+          required
+        />
+        {claimData.proofImage && (
+          <div style={{
+            marginTop: '10px',
+            padding: '10px',
+            background: 'rgba(75, 203, 250, 0.1)',
+            borderRadius: '8px',
+            textAlign: 'center'
+          }}>
+            <img 
+              src={URL.createObjectURL(claimData.proofImage)} 
+              alt="Preview" 
+              style={{
+                maxWidth: '100%',
+                maxHeight: '150px',
+                borderRadius: '8px'
+              }}
+            />
+            <p style={{ fontSize: '0.8rem', color: '#4bcbfa', marginTop: '8px' }}>
+              {claimData.proofImage.name}
+            </p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      <div className="form-group">
+        <label>Description *</label>
+        <textarea
+          name="description"
+          value={claimData.description}
+          onChange={handleClaimChange}
+          placeholder="Why do you think this is your item?"
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Claim Details / Proof *</label>
+        <textarea
+          name="proof"
+          value={claimData.proof}
+          onChange={handleClaimChange}
+          placeholder="Provide proof or identifying marks"
+        />
+      </div>
+
+      <button
+        className="submit-btn"
+        onClick={handleCreateClaim}
+        disabled={loading || !claimData.proofImage}
+      >
+        {loading ? 'Submitting...' : 'Submit Claim'}
+      </button>
+    </div>
+  </div>
+)}
        {showChatModal && chatData && (
   <ChatSystem
     claimId={chatData.claimId}

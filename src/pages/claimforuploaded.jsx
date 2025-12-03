@@ -52,6 +52,7 @@ const navigate=useNavigate();
         setClaims(data);
       } else {
         showMessage('error', data.message || 'Failed to fetch claims');
+         navigate('/');
       }
     } catch (error) {
       showMessage('error', 'Network error. Please try again.');
@@ -93,7 +94,7 @@ const navigate=useNavigate();
     setActionLoading(claimId);
     try {
       const response = await fetch(`http://localhost:2120/api/claim/reject/${claimId}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -101,6 +102,7 @@ const navigate=useNavigate();
         credentials: 'include',
       });
       const data = await response.json();
+   
       if (response.ok) {
         showMessage('success', 'Claim rejected!');
         setClaims(claims.map(claim => 
@@ -108,6 +110,7 @@ const navigate=useNavigate();
         ));
       } else {
         showMessage('error', data.msg || 'Failed to reject claim');
+        console.log(data);
       }
     } catch (error) {
       showMessage('error', 'Network error. Please try again.');
@@ -437,7 +440,33 @@ const navigate=useNavigate();
       font-size: 0.85rem;
       color: var(--text-secondary);
     }
+    .proof-image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-top: 10px;
+  border: 1px solid rgba(75, 203, 250, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
 
+.proof-image:hover {
+  box-shadow: 0 0 20px rgba(75, 203, 250, 0.3);
+  transform: scale(1.02);
+}
+
+.proof-image-container {
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(75, 203, 250, 0.1);
+}
+
+@media (max-width: 600px) {
+  .proof-image {
+    height: 150px;
+  }
+}
     .action-buttons {
       display: flex;
       gap: 10px;
@@ -671,98 +700,113 @@ const navigate=useNavigate();
 
         <h1 className="page-title">Claims on Your Uploaded Items</h1>
 
-        {loading ? (
-          <div className="loading-state">
-            <div className="loading-spinner"></div>
-            <p style={{ marginTop: '20px', color: 'var(--text-secondary)' }}>Loading claims...</p>
-          </div>
-        ) : claims.length === 0 ? (
-          <div className="empty-state">
-            <h3>No claims yet</h3>
-            <p>When someone claims your uploaded items, they will appear here</p>
-          </div>
-        ) : (
-          <div className="claims-grid">
-            {claims.map(claim => (
-              <div key={claim._id} className="claim-card">
-                <div className="claim-header">
-                  <div className="claim-title">Claim #{claim._id.slice(-6).toUpperCase()}</div>
-                  <span className={`claim-status ${claim.status}`}>{claim.status}</span>
-                </div>
-
-                <div className="claim-content">
-                  <div className="claim-detail">
-                    <div className="detail-label">Claimant</div>
-                    <div className="detail-value">
-                      <div className="claimant-info">
-                        <div className="claimant-name">{claim.claimant.username}</div>
-                        <div className="claimant-email">{claim.claimant.email}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="claim-detail">
-                    <div className="detail-label">Proof / Identifying Marks</div>
-                    <div className="detail-value">{claim.proof}</div>
-                  </div>
-
-                  <div className="claim-detail">
-                    <div className="detail-label">Claimed On</div>
-                    <div className="detail-value">
-                      {new Date(claim.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </div>
-                  </div>
-
-                  {claim.status === 'requested' && (
-  <div className="action-buttons">
-    <button
-      className="action-btn approve-btn"
-      onClick={() => handleApproveClaim(claim._id)}
-      disabled={actionLoading === claim._id}
-    >
-      <CheckCircle size={18} />
-      {actionLoading === claim._id ? 'Approving...' : 'Approve'}
-    </button>
-    <button
-      className="action-btn reject-btn"
-      onClick={() => handleRejectClaim(claim._id)}
-      disabled={actionLoading === claim._id}
-    >
-      <XCircle size={18} />
-      {actionLoading === claim._id ? 'Rejecting...' : 'Reject'}
-    </button>
+        
+{loading ? (
+  <div className="loading-state">
+    <div className="loading-spinner"></div>
+    <p style={{ marginTop: '20px', color: 'var(--text-secondary)' }}>Loading claims...</p>
   </div>
-)}
-
-{claim.status === 'approved' && (
-  <div className="action-buttons">
-    <button
-      className="action-btn approve-btn"
-      onClick={() => openChat(claim)}
-      style={{ flex: 1 }}
-    >
-      💬 Open Chat
-    </button>
-    <button
-      className="action-btn close-btn"
-      onClick={() => handleCloseItem(claim.itemId)}
-      disabled={actionLoading === `close-${claim.itemId}`}
-    >
-      {actionLoading === `close-${claim.itemId}` ? 'Closing...' : 'Mark Item as Closed'}
-    </button>
+) : claims.length === 0 ? (
+  <div className="empty-state">
+    <h3>No claims yet</h3>
+    <p>When someone claims your uploaded items, they will appear here</p>
   </div>
-)}
-                </div>
+) : (
+  <div className="claims-grid">
+    {claims.map(claim => (
+      <div key={claim._id} className="claim-card">
+        <div className="claim-header">
+          <div className="claim-title">Claim #{claim._id.slice(-6).toUpperCase()}</div>
+          <span className={`claim-status ${claim.status}`}>{claim.status}</span>
+        </div>
+
+        <div className="claim-content">
+          <div className="claim-detail">
+            <div className="detail-label">Claimant</div>
+            <div className="detail-value">
+              <div className="claimant-info">
+                <div className="claimant-name">{claim.claimant.username}</div>
+                <div className="claimant-email">{claim.claimant.email}</div>
               </div>
-            ))}
+            </div>
           </div>
-        )}
+
+          <div className="claim-detail">
+            <div className="detail-label">Proof / Identifying Marks</div>
+            <div className="detail-value">{claim.proof}</div>
+          </div>
+
+          {/* PROOF IMAGE SECTION - ADD THIS */}
+          {claim.image && (
+            <div className="proof-image-container">
+              <div className="detail-label">Proof Image</div>
+              <img 
+                src={claim.image} 
+                alt="Proof" 
+                className="proof-image"
+                onClick={() => window.open(claim.image, '_blank')}
+                title="Click to view full size"
+              />
+            </div>
+          )}
+
+          <div className="claim-detail">
+            <div className="detail-label">Claimed On</div>
+            <div className="detail-value">
+              {new Date(claim.createdAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </div>
+          </div>
+
+          {claim.status === 'requested' && (
+            <div className="action-buttons">
+              <button
+                className="action-btn approve-btn"
+                onClick={() => handleApproveClaim(claim._id)}
+                disabled={actionLoading === claim._id}
+              >
+                <CheckCircle size={18} />
+                {actionLoading === claim._id ? 'Approving...' : 'Approve'}
+              </button>
+              <button
+                className="action-btn reject-btn"
+                onClick={() => handleRejectClaim(claim._id)}
+                disabled={actionLoading === claim._id}
+              >
+                <XCircle size={18} />
+                {actionLoading === claim._id ? 'Rejecting...' : 'Reject'}
+              </button>
+            </div>
+          )}
+
+          {claim.status === 'approved' && (
+            <div className="action-buttons">
+              <button
+                className="action-btn approve-btn"
+                onClick={() => openChat(claim)}
+                style={{ flex: 1 }}
+              >
+                💬 Open Chat
+              </button>
+              <button
+                className="action-btn close-btn"
+                onClick={() => handleCloseItem(claim.itemId)}
+                disabled={actionLoading === `close-${claim.itemId}`}
+              >
+                {actionLoading === `close-${claim.itemId}` ? 'Closing...' : 'Mark Item as Closed'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+)}
       </div>
       {showChatModal && chatData && (
   <ChatSystem
@@ -778,3 +822,4 @@ const navigate=useNavigate();
 };
 
 export default UploadedClaimsPage;
+
